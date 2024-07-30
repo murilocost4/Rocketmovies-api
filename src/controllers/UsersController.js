@@ -1,28 +1,24 @@
 const { hash, compare } = require("bcryptjs")
 const AppError = require("../utils/AppError");
 
+const UserRepository = require("../repositories/UserRepository")
 const sqliteConnection = require("../database/sqlite");
+const UserCreateService = require("../services/UserCreateService")
 
 class UsersController {
     async create(request, response) {
-        const { name,  email, password } = request.body;
+        const { name, cpf, nascimento, endereco, email, password } = request.body;
 
-        const database = await sqliteConnection();
-        const checkUserExists = await database.get("SELECT * FROM users WHERE email = (?)", [email]);
+        const userRepository = new UserRepository();
+        const userCreateService = new UserCreateService(userRepository);
 
-        if (checkUserExists) {
-            throw new AppError("Este email ja está em uso");
-        }
-
-        const hashedPassword = await hash(password, 8)
-
-        await database.run("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", [name, email, hashedPassword]);
+        await userCreateService.execute({ name, cpf, nascimento, endereco, email, password });
 
         return response.status(201).json();
     }
 
     async update(request, response) {
-        const { name, email, password, old_password } = request.body;
+        const { name, cpf, nascimento, endereco, email, password, old_password } = request.body;
         const user_id = request.user.id;
 
         const database = await sqliteConnection()
@@ -32,13 +28,16 @@ class UsersController {
             throw new AppError("Usuário não encontrado");
         }
 
-        const userWithUpdatedEmail = await database.get("SELECT * FROM users WHERE email = (?)", [email]);
+        const userWithUpdatedCpf = await database.get("SELECT * FROM users WHERE cpf = (?)", [cpf]);
 
-        if (userWithUpdatedEmail && userWithUpdatedEmail.id !== user.id) {
-            throw new AppError("Este email já etá em uso")
+        if (userWithUpdatedCpf && userWithUpdatedCpf.id !== user.id) {
+            throw new AppError("Este CPF já está cadastrado")
         }
 
         user.name = name ?? user.name;
+        user.cpf = name ?? user.cpf;
+        user.nascimento = name ?? user.nascimento;
+        user.endereco = name ?? user.endereco;
         user.email = email ?? user.email;
 
         if (password && !old_password) {
@@ -58,11 +57,14 @@ class UsersController {
         await database.run(`
             UPDATE users SET
             name = ?,
+            cpf = ?,
+            nascimento = ?,
+            endereco = ?,
             email = ?,
             password = ?,
             updated_at = DATETIME('now')
             WHERE id = ?`,
-            [user.name, user.email, user.password, user_id]
+            [user.name, user.cpf, user.nascimento, user.endereco, user.email, user.password, user_id]
         );
 
         return response.json();

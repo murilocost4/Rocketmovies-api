@@ -6,18 +6,18 @@ const { sign } = require("jsonwebtoken")
 
 class SessionsController {
     async create(request, response) {
-        const { email, password } = request.body
+        const { cpf, password } = request.body
 
-        const user = await knex("users").where({email}).first()
+        const user = await knex("users").where({cpf}).first()
 
         if (!user) {
-            throw new AppError("Email e/ou senha incorretos", 401)
+            throw new AppError("Cpf e/ou senha incorretos", 401)
         }
 
         const passwordMatched = await compare(password, user.password);
 
         if (!passwordMatched) {
-            throw new AppError("Email e/ou Senha incorretos", 401)
+            throw new AppError("Cpf e/ou Senha incorretos", 401)
         }
 
         const { secret, expiresIn } = authConfig.jwt
